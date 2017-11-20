@@ -1,0 +1,298 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <style>
+      html {
+        font-size: 62.5%;
+      }
+      body {
+        background-color: white;
+        color: black;
+        font-size: 1.4em;
+        line-height: 1.5;
+        margin: 0px;
+        padding: 0px;
+      }
+      div, textarea, table, td, th, code, pre, samp {
+        word-wrap: break-word;
+      }
+      .left {
+        float: left;
+      }
+      .w50 {
+        width: 50%;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <div class="left w50">
+        <canvas id="myCanvas" width="859" height="740"></canvas>
+      </div>
+      <div class="left w50">
+        <p>
+          <ul>
+            <li id='currentFrame'>0/0 frames</li>
+            <li><button onClick="badge.prevFrame()">&lt;&lt;</button><button onClick="badge.nextFrame()">&gt;&gt;</button></li>
+            <li><button onClick="badge.updateFrame()">Commit Frame</button></li>
+            <li><button onClick="badge.draw()">Refresh Drawing</button></li>
+            <li><button onClick="badge.resetAll()">Reset all</button></li>
+          </ul>
+        </p>
+        <p>
+          <table>
+            <tr>
+              <th>Red</th>
+              <th>Yellow</th>
+              <th>Repeat</th>
+            </tr>
+            <tr>
+              <td id='redLeds'>
+                Something's not working.... JS?
+              </td>
+              <td id='yellowLeds'>
+                Something's not working.... JS?
+              </td>
+              <td valign='top'>
+                <input type='number' id='repeatCount' min="1" max="500" value="1">
+              </td>
+            </tr>
+          </table>
+        </p>
+        <p>
+          Input:<br>
+          <textarea id="codeInput" rows=10 cols=80></textarea><br>
+          <button onClick="badge.loadFromInput()">Load data</button>
+          <button onClick="badge.generateOutput()">Generate Code</button>
+        </p>
+        <p>Output:</p>
+        <p id="codeOutput">
+        </p>
+      </div>
+    </div>
+    <script>
+      var ledWidth = 15;
+      var ledHeight = 8;
+      var canvas = document.getElementById('myCanvas');
+      var context = canvas.getContext('2d');
+
+      function wait(ms) {
+        var start = Date.now(), now = start;
+        while (now - start < ms) {
+          now = Date.now();
+        }
+      }
+
+      newHtml = new String;
+      for (i=0; i <= 15; i++){
+        newHtml = newHtml + "<button onClick='badge.toggleLed(" + i + ")'> " + i + "</button><br>"
+      }
+      document.getElementById('redLeds').innerHTML = newHtml;
+      newHtml = '';
+      for (i=16; i <= 31; i++){
+        newHtml = newHtml + "<button onClick='badge.toggleLed(" + i + ")'> " + i + "</button><br>"
+      }
+      document.getElementById('yellowLeds').innerHTML = newHtml;
+
+      var badge = {
+        leds: [],
+        currentFrame: 0,
+        frameBuffer: [],
+        repeatCounts: [],
+        generateOutput: function() {
+          generated = 'Frame PATTERN_NAME['+ badge.frameBuffer.length +'] =<br>{<br>';
+          outputElement = document.getElementById('codeOutput');
+          for (i=0; i < badge.frameBuffer.length; i++) {
+            temp = '';
+            for (x = 0; x < badge.frameBuffer[i].length; x++) {
+              if (badge.frameBuffer[i][x].enabled) {
+                temp = temp + '1'
+              } else {
+                temp = temp + '0'
+              }
+            }
+            if (i == badge.frameBuffer.length-1) {
+              generated = generated + '&#123;' + parseInt(temp, 2) + ', ' + badge.repeatCounts[i] + '&#125;<br>'
+            } else {
+              generated = generated + '&#123;' + parseInt(temp, 2) + ', ' + badge.repeatCounts[i] + '&#125;,<br>'
+            }
+          }
+          generated = generated + '};'
+          outputElement.innerHTML = generated;
+        },
+        loadFromInput: function() {
+          badge.resetAll();
+          outputElement = document.getElementById('codeInput');
+          repeatElement = document.getElementById('repeatCount');
+          data = outputElement.value;
+          data = data.split('\n')
+          for (idx = 0; idx < data.length; idx++) {
+            if (!(data[idx].indexOf(' ') >= 0)) {
+              continue;
+            }
+            data[idx] = data[idx].replace('{', '')
+            data[idx] = data[idx].replace('},', '')
+            data[idx] = data[idx].replace('}', '')
+            if (data[idx].includes(', ')) {
+              temp = data[idx].split(', ');
+            } else {
+              temp = data[idx].split(' ');
+            }
+            temp[0] = +temp[0] // cast string to int
+            temp[1] = +temp[1] // cast string to int
+            for (var nFlag = 0, nShifted = temp[0], sMask = ""; nFlag < 32; nFlag++, sMask += String(nShifted >>> 31), nShifted <<= 1);
+
+            //temp[0] = temp[0].toString(2) // cast int to binary string
+            temp[0] = sMask
+            for (x = 0; x < temp[0].length; x++) {
+              if (temp[0][x] == '1') {
+                badge.toggleLed(x)
+              }
+            }
+            repeatElement.value = temp[1];
+            badge.nextFrame();
+          }
+        },
+        draw: function () {
+          context.setTransform(1, 0, 0, 1, 0, 0);
+          context.clearRect(0, 0, canvas.width, canvas.height)
+          context.beginPath();
+          context.strokeStyle = 'black';
+          context.fillStyle = '#aaa';
+          context.lineWidth = 1;
+          context.moveTo(44, 1);
+          context.lineTo(821, 1);
+          context.lineTo(858, 90);
+          context.lineTo(495, 740);
+          context.lineTo(393, 740);
+          context.lineTo(9, 75);
+          context.fill();
+          context.closePath();
+          for (i=0; i < badge.leds.length; i++){
+            context.beginPath();
+            context.setTransform(1, 0, 0, 1, 0, 0);
+            context.translate(badge.leds[i].posX, badge.leds[i].posY);
+            context.translate(ledWidth/2, ledHeight/2);
+            context.rotate(badge.leds[i].rotation * Math.PI/180);
+            context.rect(0, 0, ledWidth, ledHeight);
+            if (badge.leds[i].enabled) {
+              context.fillStyle = badge.leds[i].enabledColor;
+            } else {
+              context.fillStyle = badge.leds[i].disabledColor;
+            }
+            context.fill();
+            context.lineWidth = badge.leds[i].lineWidth;
+            context.strokeStyle = badge.leds[i].strokeStyle;
+            context.stroke();
+            context.closePath();
+            context.beginPath();
+            if (i <= 7 || (i >= 24 && i < 30)) {
+              context.translate(0, -15);
+            } else if (i == 14 || i == 15) {
+              context.translate(0, -15)
+            } else {
+              context.translate(0, 15);
+            }
+            context.font = "10px Arial";
+            context.fillStyle = "black"
+            context.textAlign = "center"
+            context.fillText(i, 10, 10)
+            context.closePath();
+          }
+        },
+        toggleLed: function (identifier) {
+          if (badge.leds[identifier].enabled) {
+            badge.leds[identifier].enabled = false;
+          } else {
+            badge.leds[identifier].enabled = true;
+          }
+          badge.draw();
+        },
+        clear: function () {
+          for (i = 0; i <= 31; i++) {
+            badge.leds[i].enabled = false;
+          }
+        },
+        resetAll: function () {
+          badge.clear();
+          badge.frameBuffer = [];
+          badge.repeatCounts = [];
+          badge.currentFrame = 0;
+          document.getElementById('repeatCount').value = 1;
+          document.getElementById('currentFrame').innerHTML = badge.currentFrame + '/' + badge.frameBuffer.length + ' frames';
+          badge.draw();
+        },
+        nextFrame: function () {
+          badge.updateFrame();
+          badge.currentFrame++;
+          if (badge.frameBuffer.length > badge.currentFrame) {
+            badge.leds = badge.frameBuffer[badge.currentFrame];
+          } else {
+            badge.clear();
+          }
+          document.getElementById('currentFrame').innerHTML = badge.currentFrame + '/' + badge.frameBuffer.length + ' frames';
+          badge.draw();
+        },
+        prevFrame: function () {
+          if (badge.currentFrame > 0) {
+            badge.currentFrame--;
+          } else {
+            badge.currentFrame = 0;
+          }
+          badge.leds = badge.frameBuffer[badge.currentFrame];
+          document.getElementById('currentFrame').innerHTML = badge.currentFrame + '/' + badge.frameBuffer.length + ' frames';
+          badge.draw();
+        },
+        updateFrame: function () {
+          badge.frameBuffer[badge.currentFrame] = JSON.parse(JSON.stringify(badge.leds))
+          badge.repeatCounts[badge.currentFrame] = document.getElementById('repeatCount').value
+        },
+
+      };
+      function led(posX = 166, posY = 47, rotation = 0, enabledColor = 'red', disabledColor = 'white', enabled = false) {
+        this.fillStyle = disabledColor;
+        this.disabledColor = disabledColor;
+        this.enabledColor = enabledColor;
+        this.enabled = enabled;
+        this.lineWidth = 1;
+        this.strokeStyle = 'black';
+        this.posX = posX;
+        this.posY = posY;
+        this.rotation = rotation;
+      };
+      badge.leds[0] = new led(426, 66);
+      badge.leds[1] = new led(557);
+      badge.leds[2] = new led(688);
+      badge.leds[3] = new led(765, 156, 60*2);
+      badge.leds[4] = new led(700, 270, 60*2);
+      badge.leds[5] = new led(635, 382, 60*2);
+      badge.leds[6] = new led(570, 495, 60*2);
+      badge.leds[7] = new led(505, 608, 60*2);
+      badge.leds[8] = new led(427, 689);
+      badge.leds[9] = new led(368, 605, 60);
+      badge.leds[10] = new led(303, 492, 60);
+      badge.leds[11] = new led(237, 379, 60);
+      badge.leds[12] = new led(172, 266, 60);
+      badge.leds[13] = new led(107, 153, 60);
+      badge.leds[14] = new led(166, 47-ledHeight/2);
+      badge.leds[15] = new led(296, 47-ledHeight/2);
+      badge.leds[16] = new led(426, 66+ledHeight, 0, 'yellow');
+      badge.leds[17] = new led(557, 47+ledHeight, 0, 'yellow');
+      badge.leds[18] = new led(688, 47+ledHeight, 0, 'yellow');
+      badge.leds[19] = new led(765-ledWidth/2, 156-ledHeight/2, 60*2, 'yellow');
+      badge.leds[20] = new led(700-ledWidth/2, 270-ledHeight/2, 60*2, 'yellow');
+      badge.leds[21] = new led(635-ledWidth/2, 382-ledHeight/2, 60*2, 'yellow');
+      badge.leds[22] = new led(570-ledWidth/2, 495-ledHeight/2, 60*2, 'yellow');
+      badge.leds[23] = new led(505-ledWidth/2, 608-ledHeight/2, 60*2, 'yellow');
+      badge.leds[24] = new led(427, 689-ledHeight, 0, 'yellow');
+      badge.leds[25] = new led(368+ledWidth/2, 605-ledHeight/2, 60, 'yellow');
+      badge.leds[26] = new led(303+ledWidth/2, 492-ledHeight/2, 60, 'yellow');
+      badge.leds[27] = new led(237+ledWidth/2, 379-ledHeight/2, 60, 'yellow');
+      badge.leds[28] = new led(172+ledWidth/2, 266-ledHeight/2, 60, 'yellow');
+      badge.leds[29] = new led(107+ledWidth/2, 153-ledHeight/2, 60, 'yellow');
+      badge.leds[30] = new led(166, 47+ledHeight/2, 0, 'yellow');
+      badge.leds[31] = new led(296, 47+ledHeight/2, 0, 'yellow');
+      badge.draw();
+    </script>
+  </body>
+</html>
